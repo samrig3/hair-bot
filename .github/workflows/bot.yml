@@ -6,6 +6,12 @@ on:
     - cron: '*/10 * * * *'
   workflow_dispatch:  # Manual trigger button in the Actions tab
 
+# Only one run at a time. If a new run starts while one is going, it waits
+# rather than racing on the state.json commit.
+concurrency:
+  group: hair-bot
+  cancel-in-progress: false
+
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -35,8 +41,20 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if [[ -n $(git status --porcelain state.json) ]]; then
-            git add state.json
-            git commit -m "Update state [skip ci]"
-            git push
+          if [[ -z $(git status --porcelain state.json) ]]; then
+            echo "No state changes to commit."
+            exit 0
           fi
+          git add state.json
+          git commit -m "Update state [skip ci]"
+          # Retry push with rebase in case another run pushed in the meantime.
+          for i in 1 2 3 4 5; do
+            if git push; then
+              echo "Pushed on attempt $i."
+              exit 0
+            fi
+            echo "Push failed (attempt $i), pulling latest and retrying..."
+            git pull --rebase --autostash origin main || true
+          done
+          echo "Could not push state after retries; will try again next run."
+          exit 0
