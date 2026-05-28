@@ -45,16 +45,26 @@ jobs:
             echo "No state changes to commit."
             exit 0
           fi
-          git add state.json
-          git commit -m "Update state [skip ci]"
-          # Retry push with rebase in case another run pushed in the meantime.
+          # Save our new state aside, then sync with remote and re-apply it.
+          # This avoids rebase cherry-pick skipping that can silently drop the
+          # state update when runs overlap.
+          cp state.json /tmp/state.json
           for i in 1 2 3 4 5; do
+            git stash --include-untracked >/dev/null 2>&1 || true
+            git fetch origin main
+            git reset --hard origin/main
+            cp /tmp/state.json state.json
+            if [[ -z $(git status --porcelain state.json) ]]; then
+              echo "Remote already has this state; nothing to push."
+              exit 0
+            fi
+            git add state.json
+            git commit -m "Update state [skip ci]"
             if git push; then
               echo "Pushed on attempt $i."
               exit 0
             fi
-            echo "Push failed (attempt $i), pulling latest and retrying..."
-            git pull --rebase --autostash origin main || true
+            echo "Push failed (attempt $i), syncing and retrying..."
           done
           echo "Could not push state after retries; will try again next run."
           exit 0
