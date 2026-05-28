@@ -769,9 +769,15 @@ def main() -> int:
 
     # 1. Always handle Telegram updates
     try:
-        updates = tg.get_updates(offset=state.get("pending_telegram_offset", 0))
+        offset = state.get("pending_telegram_offset", 0)
+        updates = tg.get_updates(offset=offset)
+        print(f"Fetched {len(updates)} update(s) at offset {offset}")
+        max_update_id = None
         for update in updates:
-            state["pending_telegram_offset"] = update["update_id"] + 1
+            uid = update["update_id"]
+            max_update_id = uid if max_update_id is None else max(max_update_id, uid)
+            # Advance offset immediately so a crash mid-handler can't cause a replay
+            state["pending_telegram_offset"] = uid + 1
             if "message" in update:
                 text = update["message"].get("text", "")
                 if text:
@@ -782,6 +788,19 @@ def main() -> int:
                 if cb.get("data"):
                     handle_callback(cb["data"], state)
             save_state(state)
+
+        # Confirm/clear all processed updates server-side by calling getUpdates
+        # once more with the advanced offset. Without this, Telegram can keep
+        # returning the same updates if the next run is delayed.
+        if max_update_id is not None:
+            confirm_offset = max_update_id + 1
+            state["pending_telegram_offset"] = confirm_offset
+            save_state(state)
+            try:
+                tg.get_updates(offset=confirm_offset)
+                print(f"Confirmed updates up to {max_update_id}, offset now {confirm_offset}")
+            except Exception as e:
+                print(f"Offset confirmation call failed (non-fatal): {e}")
     except Exception as e:
         print(f"Telegram update handling failed: {e}")
 
