@@ -778,15 +778,18 @@ def main() -> int:
             max_update_id = uid if max_update_id is None else max(max_update_id, uid)
             # Advance offset immediately so a crash mid-handler can't cause a replay
             state["pending_telegram_offset"] = uid + 1
-            if "message" in update:
-                text = update["message"].get("text", "")
-                if text:
-                    handle_text_message(text, state)
-            elif "callback_query" in update:
-                cb = update["callback_query"]
-                tg.answer_callback(cb["id"])
-                if cb.get("data"):
-                    handle_callback(cb["data"], state)
+            try:
+                if "message" in update:
+                    text = update["message"].get("text", "")
+                    if text:
+                        handle_text_message(text, state)
+                elif "callback_query" in update:
+                    cb = update["callback_query"]
+                    tg.answer_callback(cb["id"])
+                    if cb.get("data"):
+                        handle_callback(cb["data"], state)
+            except Exception as e:
+                print(f"Failed to process update {uid} (skipping): {e}")
             save_state(state)
 
         # Confirm/clear all processed updates server-side by calling getUpdates
