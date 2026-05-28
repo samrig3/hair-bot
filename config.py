@@ -66,8 +66,10 @@ SALON_CLOSING_HOUR = {
 }
 
 # ---- Run cadence (must align with cron in .github/workflows/bot.yml) ----
-SCRAPE_EVERY_N_RUNS = 1        # ~every 2 hours at 10-min cron
-EMAIL_CHECK_EVERY_N_RUNS = 144  # ~once a day
+# ---- Run cadence (must align with cron in .github/workflows/bot.yml) ----
+# Cron runs every 5 minutes, so these counts are in 5-minute units.
+SCRAPE_EVERY_N_RUNS = 24        # ~every 2 hours (24 × 5 min)
+EMAIL_CHECK_EVERY_N_RUNS = 288  # ~once a day (288 × 5 min = 24h)
 
 # ---- Dedup / notification tuning ----
 SEEN_SLOT_TTL_HOURS = 24
