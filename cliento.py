@@ -33,6 +33,16 @@ HEADERS = {
 
 LOOKAHEAD_DAYS = 180
 
+# Cliento rejects long date ranges (HTTP 400). Fetch availability in chunks of
+# this many days and combine. The booking widget itself requests short ranges;
+# 14 days is a safe chunk size. (If you still see 400s in the logs, lower this.)
+CHUNK_DAYS = 14
+
+# Stop fetching further chunks after this many consecutive empty ones — i.e.
+# once we've gone past the end of Josefine's published calendar. Avoids ~13
+# pointless requests per scrape when the calendar only goes a couple months out.
+EMPTY_CHUNKS_BEFORE_STOP = 3
+
 
 @dataclass
 class Slot:
@@ -78,39 +88,63 @@ def get_available_slots(category: str, earliest_date: date) -> List[Slot]:
         return []
 
     from_date = max(earliest_date, date.today())
-    to_date = date.today() + timedelta(days=LOOKAHEAD_DAYS)
+    end_date = date.today() + timedelta(days=LOOKAHEAD_DAYS)
 
-    params = {
-        "fromDate": from_date.isoformat(),
-        "toDate": to_date.isoformat(),
-        "resIds": STYLIST_RESOURCE_ID,
-        "srvIds": service_id,
-    }
-
-    resp = requests.get(SLOTS_URL, params=params, headers=HEADERS, timeout=30)
-    resp.raise_for_status()
-    data = resp.json()
-
+    # Cliento rejects very long date ranges (the widget only ever requests a
+    # week or two at a time). Fetch in chunks and combine. Stop early once we
+    # hit consecutive empty chunks (past the end of the published calendar).
     slots: List[Slot] = []
-    for resource in data.get("resourceSlots", []):
-        for s in resource.get("slots", []):
-            if s.get("notAvailable", False):
-                continue
-            if s.get("bookedSlots", 0) >= s.get("maxSlots", 1):
-                continue
-            try:
-                start = datetime.strptime(
-                    f"{s['date']} {s['time']}", "%Y-%m-%d %H:%M:%S"
-                )
-            except (KeyError, ValueError):
-                continue
-            if start.date() < earliest_date:
-                continue
-            slots.append(Slot(
-                start=start,
-                duration_minutes=s.get("length", 0),
-                category=category,
-            ))
+    chunk_start = from_date
+    empty_chunks = 0
+    while chunk_start <= end_date:
+        chunk_end = min(chunk_start + timedelta(days=CHUNK_DAYS - 1), end_date)
+        params = {
+            "fromDate": chunk_start.isoformat(),
+            "toDate": chunk_end.isoformat(),
+            "resIds": STYLIST_RESOURCE_ID,
+            "srvIds": service_id,
+        }
+        try:
+            resp = requests.get(SLOTS_URL, params=params, headers=HEADERS, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception as e:
+            print(f"Chunk {chunk_start}..{chunk_end} failed for {category}: {e}")
+            chunk_start = chunk_end + timedelta(days=1)
+            continue
+
+        chunk_slot_count = 0
+        for resource in data.get("resourceSlots", []):
+            for s in resource.get("slots", []):
+                if s.get("notAvailable", False):
+                    continue
+                if s.get("bookedSlots", 0) >= s.get("maxSlots", 1):
+                    continue
+                try:
+                    start = datetime.strptime(
+                        f"{s['date']} {s['time']}", "%Y-%m-%d %H:%M:%S"
+                    )
+                except (KeyError, ValueError):
+                    continue
+                if start.date() < earliest_date:
+                    continue
+                slots.append(Slot(
+                    start=start,
+                    duration_minutes=s.get("length", 0),
+                    category=category,
+                ))
+                chunk_slot_count += 1
+
+        # Track empty chunks so we can stop once past the published calendar.
+        if chunk_slot_count == 0:
+            empty_chunks += 1
+            if empty_chunks >= EMPTY_CHUNKS_BEFORE_STOP:
+                break
+        else:
+            empty_chunks = 0
+
+        chunk_start = chunk_end + timedelta(days=1)
+
     return slots
 
 
