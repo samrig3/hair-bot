@@ -66,7 +66,7 @@ SALON_CLOSING_HOUR = {
 }
 
 # ---- Run cadence (must align with cron in .github/workflows/bot.yml) ----
-SCRAPE_EVERY_N_RUNS = 12        # ~every 2 hours at 10-min cron
+SCRAPE_EVERY_N_RUNS = 1        # ~every 2 hours at 10-min cron
 EMAIL_CHECK_EVERY_N_RUNS = 144  # ~once a day
 
 # ---- Dedup / notification tuning ----
