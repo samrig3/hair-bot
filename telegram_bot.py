@@ -91,5 +91,16 @@ def answer_callback(callback_id: str, text: str = "") -> None:
         print(f"answerCallbackQuery failed (non-fatal): {e}")
 
 
+def edit_message_text(chat_id, message_id, text: str) -> None:
+    """Replace a message's text and remove its buttons (best-effort).
+    Used to show the user what they picked after tapping an inline button."""
+    try:
+        _call("editMessageText", chat_id=chat_id, message_id=message_id,
+              text=text, parse_mode="HTML",
+              reply_markup={"inline_keyboard": []})
+    except Exception as e:
+        print(f"editMessageText failed (non-fatal): {e}")
+
+
 def cliento_link() -> str:
     return "https://cliento.com/business/urban-hair-ab-urbanhair/"
