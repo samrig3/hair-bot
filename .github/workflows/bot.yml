@@ -2,8 +2,8 @@ name: Hair Bot
 
 on:
   schedule:
-    # Every 10 minutes
-    - cron: '*/10 * * * *'
+    # Every 5 minutes
+    - cron: '*/5 * * * *'
   workflow_dispatch:  # Manual trigger button in the Actions tab
 
 # Only one run at a time. If a new run starts while one is going, it waits
