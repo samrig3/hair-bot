@@ -3,7 +3,7 @@
   "last_autostart_kvitto": null,
   "pending_telegram_offset": 428090470,
   "roots_since_highlights": 0,
-  "run_counter": 14,
+  "run_counter": 15,
   "watches": [
     {
       "broadened": false,
@@ -13,7 +13,16 @@
       "id": "960b2dbc",
       "last_heartbeat": null,
       "notified_empty_preferred": false,
-      "seen_slots": {},
+      "seen_slots": {
+        "2026-07-03T14:15:00|haircut_treatment": "2026-05-28T16:34:51.099315+00:00",
+        "2026-07-03T14:30:00|haircut_treatment": "2026-05-28T16:34:51.099315+00:00",
+        "2026-07-03T15:00:00|haircut_treatment": "2026-05-28T16:34:51.099315+00:00",
+        "2026-07-03T15:30:00|haircut_treatment": "2026-05-28T16:34:51.099315+00:00",
+        "2026-07-03T16:00:00|haircut_treatment": "2026-05-28T16:34:51.099315+00:00",
+        "2026-07-03T16:30:00|haircut_treatment": "2026-05-28T16:34:51.099315+00:00",
+        "2026-08-21T14:00:00|haircut_treatment": "2026-05-28T16:34:51.099315+00:00",
+        "2026-08-22T11:30:00|haircut_treatment": "2026-05-28T16:34:51.099315+00:00"
+      },
       "source": "ad_hoc"
     },
     {
