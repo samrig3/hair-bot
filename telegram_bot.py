@@ -78,8 +78,17 @@ def get_updates(offset: int = 0) -> list:
 
 
 def answer_callback(callback_id: str, text: str = "") -> None:
-    """Acknowledge a button press so Telegram stops showing the loading spinner."""
-    _call("answerCallbackQuery", callback_query_id=callback_id, text=text)
+    """Acknowledge a button press so Telegram stops showing the loading spinner.
+
+    This is best-effort: callback queries expire quickly (within ~minutes), and
+    since this bot processes updates on a polling delay, the callback is often
+    already expired by the time we answer. A failure here is harmless (the only
+    effect is the spinner not clearing immediately), so we never let it raise.
+    """
+    try:
+        _call("answerCallbackQuery", callback_query_id=callback_id, text=text)
+    except Exception as e:
+        print(f"answerCallbackQuery failed (non-fatal): {e}")
 
 
 def cliento_link() -> str:
