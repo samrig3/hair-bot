@@ -30,6 +30,10 @@ IMAP_HOST = "imap.mail.yahoo.com"
 IMAP_PORT = 993
 CLIENTO_SENDER = "cliento.com"
 
+# Last error from an inbox check, so the bot can tell the user what went wrong
+# instead of silently reporting "no receipt found".
+LAST_ERROR: Optional[str] = None
+
 SWEDISH_MONTHS = {
     "januari": 1, "februari": 2, "mars": 3, "april": 4,
     "maj": 5, "juni": 6, "juli": 7, "augusti": 8,
@@ -148,8 +152,7 @@ def _fetch_cliento_emails(since: datetime):
     email_addr = os.environ.get("YAHOO_EMAIL")
     password = os.environ.get("YAHOO_APP_PASSWORD")
     if not email_addr or not password:
-        print("WARNING: YAHOO_EMAIL / YAHOO_APP_PASSWORD not set — cannot check inbox")
-        return
+        raise RuntimeError("YAHOO_EMAIL / YAHOO_APP_PASSWORD not set")
 
     with imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT) as imap:
         imap.login(email_addr, password)
@@ -178,6 +181,8 @@ def check_for_new_booking(since: datetime) -> Optional[Tuple[datetime, str]]:
     Returns (appointment_datetime, service_name) or None.
     Used for backup/final detection (you booked something).
     """
+    global LAST_ERROR
+    LAST_ERROR = None
     try:
         for _msg, subject, body in _fetch_cliento_emails(since):
             if _is_kvitto(subject, body):
@@ -188,6 +193,7 @@ def check_for_new_booking(since: datetime) -> Optional[Tuple[datetime, str]]:
             if parsed:
                 return parsed
     except Exception as e:
+        LAST_ERROR = str(e)
         print(f"Booking check failed: {e}")
     return None
 
@@ -199,11 +205,15 @@ def check_for_completed_appointment(since: datetime) -> Optional[Tuple[date, Opt
     matching the kvitto's date to a booking confirmation's appointment date; if no
     matching booking is found, service is None (caller should ask the user).
     """
+    global LAST_ERROR
+    LAST_ERROR = None
     try:
         emails = list(_fetch_cliento_emails(since))
     except Exception as e:
+        LAST_ERROR = str(e)
         print(f"Kvitto check failed: {e}")
         return None
+    print(f"Found {len(emails)} Cliento email(s) since {since:%Y-%m-%d}")
 
     # Find most recent kvitto
     kvitto_date = None

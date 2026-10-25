@@ -31,6 +31,7 @@ from state import (
 )
 from cliento import get_available_slots, filter_by_scope
 from email_check import check_for_new_booking, check_for_completed_appointment
+import email_check
 import telegram_bot as tg
 
 
@@ -319,6 +320,15 @@ def start_appointment_flow(state: dict) -> None:
     # Kvittos can lag a little; look back ~10 days for a completed appointment.
     since = datetime.now(timezone.utc) - timedelta(days=10)
     completed = check_for_completed_appointment(since)
+
+    if completed is None and email_check.LAST_ERROR:
+        tg.send_message(
+            "⚠️ I couldn't read your Yahoo inbox: "
+            f"<code>{email_check.LAST_ERROR[:200]}</code>\n\n"
+            "Meanwhile, what service did you just have?",
+            buttons=service_buttons(prefix="set_cycle"),
+        )
+        return
 
     if completed is None:
         tg.send_message(
