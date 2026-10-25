@@ -15,8 +15,8 @@ from config import (
     STYLIST_NAME,
     CYCLE_COOLDOWNS_WEEKS,
     CYCLE_SERVICES,
-    SCRAPE_EVERY_N_RUNS,
-    EMAIL_CHECK_EVERY_N_RUNS,
+    SCRAPE_EVERY_MINUTES,
+    EMAIL_CHECK_EVERY_MINUTES,
     SEEN_SLOT_TTL_HOURS,
     MAX_NOTIFICATIONS_PER_SCRAPE,
     HEARTBEAT_DAYS,
@@ -775,6 +775,18 @@ def do_email_check(state: dict) -> None:
 
 # ---- Main ----
 
+def is_due(state: dict, key: str, every_minutes: int) -> bool:
+    """True if at least `every_minutes` have passed since state[key] (ISO time)."""
+    last = state.get(key)
+    if not last:
+        return True
+    try:
+        elapsed = datetime.now(timezone.utc) - datetime.fromisoformat(last)
+    except ValueError:
+        return True
+    return elapsed >= timedelta(minutes=every_minutes)
+
+
 def main() -> int:
     state = load_state()
     state["run_counter"] = state.get("run_counter", 0) + 1
@@ -829,8 +841,12 @@ def main() -> int:
     except Exception as e:
         print(f"Telegram update handling failed: {e}")
 
+    now_iso = datetime.now(timezone.utc).isoformat()
+
     # 2. Email checks (on the email cadence)
-    if state["run_counter"] % EMAIL_CHECK_EVERY_N_RUNS == 0:
+    if is_due(state, "last_email_check", EMAIL_CHECK_EVERY_MINUTES):
+        state["last_email_check"] = now_iso
+        print("Running email checks")
         # 2a. Kvitto auto-start — runs even with no active watches, so a completed
         # appointment automatically kicks off the next cycle search.
         try:
@@ -844,16 +860,15 @@ def main() -> int:
             except Exception as e:
                 print(f"Email check failed: {e}")
 
-    # 3. Scrape Cliento (if any watches active)
-    if state["watches"] and state["run_counter"] % SCRAPE_EVERY_N_RUNS == 0:
+    # 3. Scrape Cliento + weekly heartbeat (if any watches active).
+    # The heartbeat function itself enforces once-per-week timing per watch.
+    if state["watches"] and is_due(state, "last_scrape", SCRAPE_EVERY_MINUTES):
+        state["last_scrape"] = now_iso
+        print("Running scrape")
         try:
             do_scrape(state)
         except Exception as e:
             print(f"Scrape failed: {e}")
-
-    # 4. Weekly heartbeat (if any watches active) — runs on the scrape cadence;
-    # the function itself enforces the once-per-week timing per watch.
-    if state["watches"] and state["run_counter"] % SCRAPE_EVERY_N_RUNS == 0:
         try:
             do_heartbeat(state)
         except Exception as e:

@@ -65,11 +65,11 @@ SALON_CLOSING_HOUR = {
     5: 15,                                 # Saturday ~15:00
 }
 
-# ---- Run cadence (must align with cron in .github/workflows/bot.yml) ----
-# ---- Run cadence (must align with cron in .github/workflows/bot.yml) ----
-# Cron runs every 5 minutes, so these counts are in 5-minute units.
-SCRAPE_EVERY_N_RUNS = 24        # ~every 2 hours (24 × 5 min)
-EMAIL_CHECK_EVERY_N_RUNS = 288  # ~once a day (288 × 5 min = 24h)
+# ---- Run cadence (time-based) ----
+# GitHub throttles scheduled runs heavily (often hours apart instead of every
+# 5 min), so cadence is based on elapsed time, not on counting runs.
+SCRAPE_EVERY_MINUTES = 110       # scrape Cliento if it's been ~2h since last scrape
+EMAIL_CHECK_EVERY_MINUTES = 350  # check Yahoo inbox if it's been ~6h since last check
 
 # ---- Dedup / notification tuning ----
 SEEN_SLOT_TTL_HOURS = 24

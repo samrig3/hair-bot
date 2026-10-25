@@ -148,6 +148,7 @@ def _fetch_cliento_emails(since: datetime):
     email_addr = os.environ.get("YAHOO_EMAIL")
     password = os.environ.get("YAHOO_APP_PASSWORD")
     if not email_addr or not password:
+        print("WARNING: YAHOO_EMAIL / YAHOO_APP_PASSWORD not set — cannot check inbox")
         return
 
     with imaplib.IMAP4_SSL(IMAP_HOST, IMAP_PORT) as imap:
