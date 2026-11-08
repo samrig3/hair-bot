@@ -1,0 +1,29 @@
+name: Check Now
+
+# On-demand, read-only slot lookup. Does not change state or send messages.
+on:
+  workflow_dispatch:
+    inputs:
+      services:
+        description: "Comma-separated service keys from config.py (e.g. roots_cut,haircut)"
+        default: "roots_cut"
+      days:
+        description: "Days to include: sat, fri,sat, or all"
+        default: "sat"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install requests
+      - name: Check slots
+        env:
+          SERVICES: ${{ inputs.services }}
+          DAYS: ${{ inputs.days }}
+        run: python check_now.py "$SERVICES" "$DAYS" | tee -a "$GITHUB_STEP_SUMMARY"
